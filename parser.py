@@ -62,7 +62,7 @@ class Parser:
             elif isinstance(self.token, tokenizer.Number):
                 return self._parse_number()
             elif self.token == '(':
-                return self._parse_expression()
+                return self._parse_paren_expression()
             else:
                 logger.error("unknown token '{}', expected expression"
                              .format(self.token))
@@ -132,9 +132,9 @@ class Parser:
         self._advance()
         return result
 
-    def _parse_paren(self):
+    def _parse_paren_expression(self):
         self._advance()  # Eat (
-        result = self._parse_expresion()
+        result = self._parse_expression()
         if self.token != ')':
             logger.error("Expected ')'")
             return None
