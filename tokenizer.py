@@ -45,6 +45,9 @@ class Tokenizer:
         self.last_char = ' '
         self.source = source
         self.token = Token()
+        self.current_col = 0
+        self.current_line = 0
+        self.current_context = ''
 
     def __iter__(self):
         return self
@@ -69,6 +72,13 @@ class Tokenizer:
 
     def _advance(self):
         self.last_char = self.source.read(1)
+        if self.last_char in ['\n', '\r']:
+            self.current_context += self.last_char
+            self.current_col = 0
+            self.current_line += 1
+        else:
+            self.current_col += 1
+            self.current_context += self.last_char
         return self.last_char
 
     def _eat_white_space(self):

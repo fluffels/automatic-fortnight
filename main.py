@@ -21,6 +21,8 @@ args = parser.parse_args()
 logging.info('Compiling "{}"'.format(args.source.name))
 
 tokenizer = Tokenizer(args.source)
+parser = Parser(tokenizer)
+ir = parser.parse()
 
-for token in tokenizer:
-    print(token, end=" ")
+for item in ir:
+    print(item, end=' ')

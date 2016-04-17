@@ -11,10 +11,16 @@ class Number(Expression):
     def __init__(self, token):
         self.token = token
 
+    def __str__(self):
+        return "({})".format(self.token.value)
+
 
 class Variable(Expression):
     def __init__(self, identifier):
         self.identifier = identifier
+
+    def __str__(self):
+        return "({})".format(self.identifier.identifier)
 
 
 class BinaryExpression(Expression):
@@ -22,6 +28,9 @@ class BinaryExpression(Expression):
         self.operator = operator
         self.lhs = lhs
         self.rhs = rhs
+
+    def __str__(self):
+        return "({} {} {})".format(self.lhs, self.operator, self.rhs)
 
 
 class Call(Expression):
@@ -31,15 +40,22 @@ class Call(Expression):
 
 
 class FunctionPrototype:
-    def __init__(self, name, argc):
+    def __init__(self, name, args):
         self.name = name
-        self.args = argc
+        self.args = args
+
+    def __str__(self):
+        return "fn {} ({})".format(
+            self.name, ' '.join([arg.identifier for arg in self.args]))
 
 
 class FunctionDefinition:
     def __init__(self, prototype, body):
         self.prototype = prototype
         self.body = body
+
+    def __str__(self):
+        return "definition of {}".format(self.prototype)
 
 
 class Parser:
@@ -51,6 +67,10 @@ class Parser:
 
     def _advance(self):
         self.token = next(self.tokenizer)
+
+    def _error(self, message):
+        logger.error("line {}, col {}: {}".format(
+            self.tokenizer.current_line, self.tokenizer.current_col, message))
 
     def _get_operator_precedence(self, token):
         return self.operator_precedence_map.get(token, -1)
@@ -64,8 +84,8 @@ class Parser:
             elif self.token == '(':
                 return self._parse_paren_expression()
             else:
-                logger.error("unknown token '{}', expected expression"
-                             .format(self.token))
+                self._error("unknown token '{}', expected expression"
+                            .format(self.token))
                 return None
         except StopIteration:
             return None
@@ -117,12 +137,12 @@ class Parser:
                     if argument:
                         arguments.append(argument)
                     else:
-                        logger.error("Could not parse expression.")
+                        self._error("Could not parse expression.")
                         return None
                     if self.token == ')':
                         break
                     if self.token != ',':
-                        logger.error("Expected ')', or ',' in argument list.")
+                        self._error("Expected ')', or ',' in argument list.")
                     self._advance()
             self._advance()  # Eat ')'.
             return Call(identifier, len(arguments))
@@ -136,7 +156,7 @@ class Parser:
         self._advance()  # Eat (
         result = self._parse_expression()
         if self.token != ')':
-            logger.error("Expected ')'")
+            self._error("Expected ')'")
             return None
         self._advance()
         return result
@@ -146,18 +166,20 @@ class Parser:
         prototype ::= identifier '(' identifier* ')'
         """
         if not isinstance(self.token, tokenizer.Identifier):
-            logger.error("expected function name in prototype")
+            self._error("expected function name in prototype")
             return None
-        fn_name = self.token.identifier.identifier
+        fn_name = self.token.identifier
         self._advance()
         if self.token != '(':
-            logger.error("expected '(' in function prototype")
+            self._error("expected '(' in function prototype")
             return None
+        self._advance()
         arguments = []
         while isinstance(self.token, tokenizer.Identifier):
             arguments.append(self.token)
+            self._advance()
         if self.token != ')':
-            logger.error("expected ')' in function prototype")
+            self._error("expected ')' in function prototype")
             return None
         self._advance()
         return FunctionPrototype(fn_name, arguments)
@@ -188,6 +210,8 @@ class Parser:
             prototype = FunctionPrototype('', [])
             return FunctionDefinition(prototype, expression)
         else:
+            # Attempt to recover.
+            self._advance()
             return None
 
     def parse(self):
@@ -195,6 +219,19 @@ class Parser:
         # Initialize with first token.
         self._advance()
         ast = []
-        if isinstance(self.token, tokenizer.EOF):
-            return ast
-
+        while not isinstance(self.token, tokenizer.EOF):
+            if self.token == '\n':
+                self._advance()
+            elif isinstance(self.token, tokenizer.Function):
+                ast.append(self._parse_function_definition())
+            elif isinstance(self.token, tokenizer.Identifier):
+                ast.append(self._parse_identifier())
+            elif isinstance(self.token, tokenizer.External):
+                ast.append(self._parse_extern())
+            elif isinstance(self.token, tokenizer.Comment):
+                # Might want to do something with these later on, like Python
+                # docstrings.
+                pass
+            else:
+                ast.append(self._parse_top_level_expression())
+        return ast
