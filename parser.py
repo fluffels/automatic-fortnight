@@ -140,3 +140,61 @@ class Parser:
             return None
         self._advance()
         return result
+
+    def _parse_function_prototype(self):
+        """
+        prototype ::= identifier '(' identifier* ')'
+        """
+        if not isinstance(self.token, tokenizer.Identifier):
+            logger.error("expected function name in prototype")
+            return None
+        fn_name = self.token.identifier.identifier
+        self._advance()
+        if self.token != '(':
+            logger.error("expected '(' in function prototype")
+            return None
+        arguments = []
+        while isinstance(self.token, tokenizer.Identifier):
+            arguments.append(self.token)
+        if self.token != ')':
+            logger.error("expected ')' in function prototype")
+            return None
+        self._advance()
+        return FunctionPrototype(fn_name, arguments)
+
+    def _parse_function_definition(self):
+        """
+        definition ::= 'def' prototype expression
+        """
+        self._advance()  # Eat 'def'.
+        prototype = self._parse_function_prototype()
+        if not prototype:
+            return None
+        expression = self._parse_expression()
+        if not expression:
+            return None
+        return FunctionDefinition(prototype, expression)
+
+    def _parse_extern(self):
+        """
+        external ::= 'extern' prototype
+        """
+        self._advance()  # Eat 'extern'.
+        return self._parse_function_prototype()
+
+    def _parse_top_level_expression(self):
+        expression = self._parse_expression()
+        if expression:
+            prototype = FunctionPrototype('', [])
+            return FunctionDefinition(prototype, expression)
+        else:
+            return None
+
+    def parse(self):
+        logger.debug("starting parser")
+        # Initialize with first token.
+        self._advance()
+        ast = []
+        if isinstance(self.token, tokenizer.EOF):
+            return ast
+
