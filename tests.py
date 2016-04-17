@@ -60,6 +60,7 @@ class TestParser(TestCase):
         self.assertEquals(expression.lhs.lhs.operator, '+')
         self.assertEquals(expression.lhs.lhs.rhs.identifier.identifier, 'b')
         self.assertEquals(expression.lhs.operator, '+')
+        self.assertEquals(expression.operator, '+')
         self.assertEquals(expression.lhs.rhs.lhs.lhs.lhs.identifier.identifier, 'c')
         self.assertEquals(expression.lhs.rhs.lhs.lhs.operator, '+')
         self.assertEquals(expression.lhs.rhs.lhs.lhs.rhs.identifier.identifier, 'd')
